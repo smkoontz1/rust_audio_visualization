@@ -4,22 +4,28 @@ extern crate opengl_graphics;
 extern crate piston;
 
 use glutin_window::GlutinWindow as Window;
+use graphics::rectangle;
 use graphics::types::Color;
-use graphics::{rectangle, Rectangle};
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
+use rand::Rng;
 
 struct Bar {
     width: f64,
-    height: f64,
+    max_height: f64,
+    curr_height: f64,
     color: Color,
 }
 
 impl Bar {
     fn rect_cooridinates(&self, x0: f64, y0: f64) -> [f64; 4] {
-        rectangle::rectangle_by_corners(x0, y0, x0 + self.width, y0 + self.height)
+        let x1 = x0 + self.width;
+        let y1 = y0 + self.max_height;
+        let y0 = y1 - self.curr_height;
+
+        rectangle::rectangle_by_corners(x0, y0, x1, y1)
     }
 }
 
@@ -47,23 +53,22 @@ impl App {
             // Draw bars
             let mut x0: f64 = 20.0;
             let y0: f64 = 50.0;
-            let bar_count = self.spectrogram.bars.len();
-            for i in 0..bar_count {
-                let bar = &self
-                    .spectrogram
-                    .bars
-                    .get(i)
-                    .expect("There was a problem getting the bar.");
-                
+            for bar in self.spectrogram.bars.iter() {
                 rectangle(bar.color, bar.rect_cooridinates(x0, y0), c.transform, gl);
-                
+
                 // Move x coordinate over 10px
                 x0 = x0 + bar.width + 10.0;
             }
         })
     }
 
-    fn update(&mut self, args: &UpdateArgs) {}
+    fn update(&mut self, args: &UpdateArgs) {
+        for bar in self.spectrogram.bars.iter_mut() {
+            let rand_percentage = rand::thread_rng().gen_range(40.0..=100.0);
+            let ratio = rand_percentage / 100.0;
+            bar.curr_height = bar.max_height * ratio;
+        }
+    }
 }
 
 fn main() {
@@ -84,7 +89,8 @@ fn main() {
     for _i in 1..=7 {
         bars.push(Bar {
             width: 100.0,
-            height: 300.0,
+            max_height: 300.0,
+            curr_height: 300.0,
             color: RED,
         })
     }
