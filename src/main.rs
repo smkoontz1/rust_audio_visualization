@@ -3,14 +3,19 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
+use std::fs::File;
+use std::io::BufReader;
+use std::path::Path;
+
 use glutin_window::GlutinWindow as Window;
 use graphics::rectangle;
 use graphics::types::Color;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventSettings, Events};
-use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
+use piston::input::{RenderArgs, RenderEvent, UpdateEvent};
 use piston::window::WindowSettings;
 use rand::Rng;
+use rodio::{OutputStream, Decoder, Sink};
 
 struct Bar {
     width: f64,
@@ -44,8 +49,6 @@ impl App {
 
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
 
-        // let bar = rectangle::rectangle_by_corners(20.0, 50.0, 120.0, 350.0);
-
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen.
             clear(BLACK, gl);
@@ -62,7 +65,7 @@ impl App {
         })
     }
 
-    fn update(&mut self, args: &UpdateArgs) {
+    fn update(&mut self) {
         for bar in self.spectrogram.bars.iter_mut() {
             let rand_percentage = rand::thread_rng().gen_range(40.0..=100.0);
             let ratio = rand_percentage / 100.0;
@@ -97,11 +100,35 @@ fn main() {
 
     let spectrogram = Spectrogram { bars };
 
+    // let host = cpal::host_from_id(cpal::HostId::Wasapi).expect("Failed to initialize Wasapi host.");
+    // let device = host
+    //     .default_output_device()
+    //     .expect("No output device available.");
+    // let mut supported_configs_range = device
+    //     .supported_output_configs()
+    //     .expect("Error while querying configs.");
+    // let supported_config = supported_configs_range
+    //     .next()
+    //     .expect("No supported config.")
+    //     .with_max_sample_rate();
+
     // Create a new game and run it.
     let mut app = App {
         gl: GlGraphics::new(opengl),
         spectrogram,
     };
+
+    // Audio
+    let (_stream, stream_handle) = OutputStream::try_default().expect("Error getting output stream.");
+    let sink = Sink::try_new(&stream_handle).expect("Error getting sink.");
+
+    let path = Path::new("C:\\_git\\rust_audio_visualization\\src\\assets\\music\\tell_it_to_my_heart.mp3");
+    let file = BufReader::new(File::open(path).expect("Error opening music file."));
+    let source = Decoder::new(file).expect("Error getting decoder.");
+    sink.append(source);
+
+    // This keeps the sink going, but we have a render loop, so we don't need this.
+    // sink.sleep_until_end();
 
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(&mut window) {
@@ -109,8 +136,8 @@ fn main() {
             app.render(&args);
         }
 
-        if let Some(args) = e.update_args() {
-            app.update(&args);
+        if let Some(_args) = e.update_args() {
+            app.update();
         }
     }
 }
