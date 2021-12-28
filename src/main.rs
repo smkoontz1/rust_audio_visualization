@@ -21,6 +21,9 @@ use piston::input::{RenderArgs, RenderEvent, UpdateEvent};
 use piston::window::WindowSettings;
 use rand::Rng;
 
+const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
+const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+
 struct Bar {
     width: f64,
     max_height: f64,
@@ -42,97 +45,176 @@ struct Spectrogram {
     bars: Vec<Bar>,
 }
 
+struct ChannelBars {
+    left_bar: Bar,
+    right_bar: Bar,
+}
+
 pub struct App {
     gl: GlGraphics,
-    spectrogram: Spectrogram,
+    channel_bars: ChannelBars,
+    // spectrogram: Spectrogram,
 }
 
 impl App {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
-        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
-
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen.
             clear(BLACK, gl);
 
-            // Draw bars
-            let mut x0: f64 = 20.0;
+            // Y doesn't change
             let y0: f64 = 50.0;
-            for bar in self.spectrogram.bars.iter() {
-                rectangle(bar.color, bar.rect_cooridinates(x0, y0), c.transform, gl);
 
-                // Move x coordinate over 10px
-                x0 = x0 + bar.width + 10.0;
-            }
+            // Make bar references
+            let right_bar = &self.channel_bars.right_bar;
+            let left_bar = &self.channel_bars.left_bar;
+
+            // Draw the left bar
+            let left_x0: f64 = 20.0;
+            rectangle(
+                left_bar.color,
+                left_bar.rect_cooridinates(left_x0, y0),
+                c.transform,
+                gl,
+            );
+
+            // Put 10px of space in between them
+            let right_x0: f64 = left_x0 + left_bar.width + 10.0;
+
+            // Draw the right bar
+            rectangle(
+                right_bar.color,
+                right_bar.rect_cooridinates(right_x0, y0),
+                c.transform,
+                gl,
+            );
+
+            // Old code for spectro we probably want
+            // // Draw bars
+            // let mut x0: f64 = 20.0;
+            // let y0: f64 = 50.0;
+            // for bar in self.spectrogram.bars.iter() {
+            //     rectangle(bar.color, bar.rect_cooridinates(x0, y0), c.transform, gl);
+
+            //     // Move x coordinate over 10px
+            //     x0 = x0 + bar.width + 10.0;
+            // }
         })
     }
 
     fn update(&mut self) {
-        for bar in self.spectrogram.bars.iter_mut() {
-            let rand_percentage = rand::thread_rng().gen_range(40.0..=100.0);
-            let ratio = rand_percentage / 100.0;
-            bar.curr_height = bar.max_height * ratio;
-        }
+        // Some stuff
     }
+
+    // fn update(&mut self, curr_left_value: &f32, curr_right_value: &f32) {
+    //     let max_amplitude = 0.2;
+    //     let left_ratio = f64::from(curr_left_value.abs() / max_amplitude);
+    //     let right_ratio = f64::from(curr_right_value.abs() / max_amplitude);
+
+    //     self.channel_bars.left_bar.curr_height = self.channel_bars.left_bar.max_height * left_ratio;
+    //     self.channel_bars.right_bar.curr_height =
+    //         self.channel_bars.right_bar.max_height * right_ratio;
+    // }
 }
 
 fn main() -> anyhow::Result<()> {
-    // let opengl = OpenGL::V3_2;
+    let opengl = OpenGL::V3_2;
 
-    // // Create the Glutin window.
-    // let mut window: Window = WindowSettings::new("Audio Visualization", [800, 400])
-    //     .graphics_api(opengl)
-    //     .exit_on_esc(true)
-    //     .build()
-    //     .unwrap();
+    // Create the Glutin window.
+    let mut window: Window = WindowSettings::new("Audio Visualization", [150, 400])
+        .graphics_api(opengl)
+        .exit_on_esc(true)
+        .build()
+        .unwrap();
 
-    // const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+    let channel_bars = ChannelBars {
+        left_bar: Bar {
+            color: RED,
+            width: 50.0,
+            max_height: 300.0,
+            curr_height: 300.0,
+        },
+        right_bar: Bar {
+            color: RED,
+            width: 50.0,
+            max_height: 300.0,
+            curr_height: 300.0,
+        },
+    };
 
-    // // Make 7 red bars
-    // let mut bars = Vec::<Bar>::new();
-    // for _i in 1..=7 {
-    //     bars.push(Bar {
-    //         width: 100.0,
-    //         max_height: 300.0,
-    //         curr_height: 300.0,
-    //         color: RED,
-    //     })
-    // }
+    // Create a new game and run it
+    let mut app = App {
+        gl: GlGraphics::new(opengl),
+        channel_bars,
+    };
 
-    // // Create a spectrogram.
-    // let spectrogram = Spectrogram { bars };
+    // let host = cpal::host_from_id(cpal::HostId::Wasapi).expect("Failed to initialize Wasapi host.");
+    // let device = host
+    //     .default_output_device()
+    //     .expect("No output device available.");
+    // let supported_config = device.default_output_config().unwrap();
+    // let config = supported_config.config();
+    // let channels = config.channels as usize;
+    // println!("Default output config: {:?}", config);
 
-    let host = cpal::host_from_id(cpal::HostId::Wasapi).expect("Failed to initialize Wasapi host.");
-    let device = host
-        .default_output_device()
-        .expect("No output device available.");
-    let config = device.default_output_config().unwrap();
-    println!("Default output config: {:?}", config);
+    // let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
-    // Create a new game and run it.
-    // let mut app = App {
-    //     gl: GlGraphics::new(opengl),
-    //     spectrogram,
-    // };
+    // let mut left_channel_curr_value = 0.0;
+    // let mut right_channel_curr_value = 0.0;
 
-    // let mut events = Events::new(EventSettings::new());
-    // while let Some(e) = events.next(&mut window) {
-    //     if let Some(args) = e.render_args() {
-    //         app.render(&args);
-    //     }
+    // let stream = device
+    //     .build_input_stream(
+    //         &config,
+    //         move |data: &[f32], _: &InputCallbackInfo| {
+    //             for frame in data.chunks(channels) {
+    //                 let mut channel = 0;
 
-    //     if let Some(_args) = e.update_args() {
-    //         app.update();
-    //     }
-    // }
+    //                 for sample in frame.iter() {
+    //                     match channel {
+    //                         0 => left_channel_curr_value = *sample,
+    //                         1 => right_channel_curr_value = *sample,
+    //                         _ => {
+    //                             left_channel_curr_value = 0.0;
+    //                             right_channel_curr_value = 0.0;
+    //                         }
+    //                     }
 
-    match config.sample_format() {
-        SampleFormat::F32 => run_audio::<f32>(&device, &config.into()),
-        SampleFormat::I16 => run_audio::<i16>(&device, &config.into()),
-        SampleFormat::U16 => run_audio::<u16>(&device, &config.into()),
+    //                     println!("Reading from channel: {} value: {}", channel, *sample);
+
+    //                     // iterate the channel
+    //                     channel = channel + 1;
+    //                 }
+    //             }
+    //         },
+    //         err_fn,
+    //     )
+    //     .expect("Error building input stream.");
+    // stream.play()?;
+
+    let mut events = Events::new(EventSettings::new());
+    while let Some(e) = events.next(&mut window) {
+        if let Some(args) = e.render_args() {
+            app.render(&args);
+        }
+
+        if let Some(_args) = e.update_args() {
+            app.update();
+            // app.update(&left_channel_curr_value, &right_channel_curr_value);
+        }
     }
+
+    // That is because it is needed up here, I see.
+    thread::sleep(std::time::Duration::from_millis(10000));
+
+    Ok(())
+
+    // match config.sample_format() {
+    //     SampleFormat::F32 => run_audio::<f32>(&device, &config.into()),
+    //     SampleFormat::I16 => run_audio::<i16>(&device, &config.into()),
+    //     SampleFormat::U16 => run_audio::<u16>(&device, &config.into()),
+    // }
 }
 
 fn run_audio<T>(device: &Device, config: &StreamConfig) -> Result<(), anyhow::Error>
@@ -141,13 +223,6 @@ where
 {
     // let sample_rate = config.sample_rate.0 as f32;
     let channels = config.channels as usize;
-
-    // Produce a sinusoid
-    // let mut sample_clock = 0f32;
-    // let mut next_value = move || {
-    //     sample_clock = (sample_clock + 1.0) % sample_rate;
-    //     (sample_clock * 440.0 * 2.0 * std::f32::consts::PI / sample_rate).sin()
-    // };
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
@@ -158,7 +233,11 @@ where
                 for frame in data.chunks(channels) {
                     let mut channel = 0;
                     for sample in frame.iter() {
-                        println!("Reading from channel: {} value: {}", channel, sample.to_f32());
+                        println!(
+                            "Reading from channel: {} value: {}",
+                            channel,
+                            sample.to_f32()
+                        );
                         channel = channel + 1;
                     }
                 }
@@ -168,17 +247,7 @@ where
         .expect("Error building input stream.");
     stream.play()?;
 
-    // let output_stream = device
-    //     .build_output_stream(
-    //         config,
-    //         move |data: &mut [T], _: &OutputCallbackInfo| {
-    //             write_data(data, channels, &mut next_value)
-    //         },
-    //         err_fn,
-    //     )
-    //     .expect("Error building output stream");
-    // output_stream.play()?;
-
+    // This doesn't seem to do anything anymore
     thread::sleep(std::time::Duration::from_millis(5000));
 
     Ok(())
